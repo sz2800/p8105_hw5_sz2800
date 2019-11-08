@@ -59,7 +59,36 @@ files_tidy_plot
 
 
 ```{r}
+prob3_sim_reg = function(n = 30, beta0 = 2, var = 50, beta1) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = 0, sd = 1),
+    y = beta0 + beta1 * x + rnorm(n, 0, var)
+  )
+  
+  ls_sim = lm(y ~ x, data = sim_data) %>% 
+    broom::tidy() %>% 
+    filter(term == "x")
+      
+  tibble(
+    beta1_hat = pull(ls_sim, estimate),
+    p_value = pull(ls_sim, p.value)
+  )
+}
+```
 
+
+```{r}
+output_sim_reg = 
+  tibble(beta1 = c(1, 2, 3, 4, 5, 6)) %>% 
+  mutate(
+    output_lists = map(.x = beta1, ~rerun(1000, prob3_sim_reg(beta1 = .x))),
+    estimate_dfs = map(output_lists, bind_rows)) %>% 
+  select(-output_lists) %>% 
+  unnest(estimate_dfs)
+
+output_sim_reg
 
 ```
+
 
