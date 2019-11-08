@@ -82,13 +82,43 @@ prob3_sim_reg = function(n = 30, beta0 = 2, var = 50, beta1) {
 output_sim_reg = 
   tibble(beta1 = c(1, 2, 3, 4, 5, 6)) %>% 
   mutate(
-    output_lists = map(.x = beta1, ~rerun(1000, prob3_sim_reg(beta1 = .x))),
+    output_lists = map(.x = beta1, ~rerun(10000, prob3_sim_reg(beta1 = .x))),
     estimate_dfs = map(output_lists, bind_rows)) %>% 
   select(-output_lists) %>% 
   unnest(estimate_dfs)
 
 output_sim_reg
 
+```
+
+```{r}
+ls_reject_pre = output_sim_reg %>%
+  group_by(beta1) %>% 
+  summarize(n = n(), 
+            reject = sum(p_value <= 0.05), 
+            non_reject = sum(p_value > 0.05), 
+            prop_reject = (reject/n))
+
+ls_reject_hist = ls_reject_pre %>% 
+  ggplot(aes(x = beta1, y = prop_reject)) +
+  geom_histogram(stat = "identity")
+
+ls_reject_hist
+```
+
+```{r}
+ls_beta_avg_pre = output_sim_reg %>%
+  group_by(beta1) %>% 
+  mutate(avg_beta_hat = mean(beta1_hat))
+
+ls_beta_avg_pre
+
+ls_bavg_rej_pre = output_sim_reg %>% 
+  group_by(beta1) %>% 
+  filter(p_value <= 0.05) %>% 
+  mutate(avg_betah_rej = mean(beta1_hat))
+
+ls_bavg_rej_pre
 ```
 
 
