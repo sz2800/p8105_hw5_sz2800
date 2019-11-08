@@ -1,0 +1,65 @@
+---
+title: "p8105_hw5_sz2800"
+author: "Stephanie Zhen"
+date: "11/11/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+
+set.seed(10)
+
+iris_with_missing = iris %>% 
+  janitor::clean_names() %>% 
+  map_df(~replace(.x, sample(1:150, 20), NA)) %>%
+  mutate(species = as.character(species))
+```
+
+```{r}
+iris_missing_na = function(x) {
+  if (is.numeric(x)) {
+    x = replace_na(x, mean(x, na.rm = TRUE))}
+  else if (!is.numeric(x)){
+    x = replace_na(x, "virginica")
+  }
+}
+
+output_iris = map_df(iris_with_missing, iris_missing_na)
+
+```
+
+```{r}
+all_files = list.files(path = "./data") %>% 
+  tibble::enframe(name = NULL) %>% 
+  mutate(
+    read_all_data = map(value, ~read_csv(str_c("./data/", .x)))
+    ) %>% 
+  unnest(read_all_data) %>% 
+  separate(value, into = c("txt_group", "subject_id")) %>% 
+  mutate(subject_id = str_c(txt_group, subject_id))
+  
+  files_tidy = pivot_longer(
+    all_files,
+    week_1:week_8,
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "sub_obs") %>%
+    mutate(week = as.numeric(week))
+  
+files_tidy_plot = ggplot(files_tidy, aes(x = week, y = sub_obs, color = txt_group, group = subject_id)) +
+  geom_path() 
+
+files_tidy_plot
+```
+
+
+```{r}
+
+
+```
+
