@@ -11,7 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+```
 
+### Pre-Question 1:
+```{r}
 set.seed(10)
 
 iris_with_missing = iris %>% 
@@ -20,6 +23,7 @@ iris_with_missing = iris %>%
   mutate(species = as.character(species))
 ```
 
+## QUestion 1:
 ```{r}
 iris_missing_na = function(x) {
   if (is.numeric(x)) {
@@ -30,9 +34,12 @@ iris_missing_na = function(x) {
 }
 
 output_iris = map_df(iris_with_missing, iris_missing_na)
-
 ```
 
+Imputation of missing numeric values:Missing numeric values are replaced with the mean of that variables.
+Missing character values for the variable "species" are replaced with "virginica."
+
+### Question 2:
 ```{r}
 all_files = list.files(path = "./data") %>% 
   tibble::enframe(name = NULL) %>% 
@@ -51,14 +58,32 @@ all_files = list.files(path = "./data") %>%
     values_to = "sub_obs") %>%
     mutate(week = as.numeric(week))
   
-files_tidy_plot = ggplot(files_tidy, aes(x = week, y = sub_obs, color = txt_group, group = subject_id)) +
-  geom_path() 
-
-files_tidy_plot
+knitr::kable(files_tidy,
+             format = "html",
+             digits = 3,
+             caption = "Observation values with respect to Week")
 ```
 
 
 ```{r}
+files_tidy_plot = ggplot(
+  files_tidy, 
+  aes(x = week, 
+      y = sub_obs, 
+      color = txt_group, 
+      group = subject_id)) +
+  geom_path() +
+  labs(x = "Week", y = "Observed values", title = "Observations of Subjects over Time between Treatment Group", fill = "Treatment arm")
+
+files_tidy_plot
+```
+
+The experimental arm has higher observed values than when compared to the control arm. SUbjects in the experimental arm also have a small increased in observed values over time, whereas there is no difference in observed value for the control group over time.  
+
+
+### Question 3: Generating random samples
+```{r}
+set.seed(1)
 prob3_sim_reg = function(n = 30, beta0 = 2, var = 50, beta1) {
   
   sim_data = tibble(
@@ -78,6 +103,7 @@ prob3_sim_reg = function(n = 30, beta0 = 2, var = 50, beta1) {
 ```
 
 
+Iterating over beta1
 ```{r}
 output_sim_reg = 
   tibble(beta1 = c(1, 2, 3, 4, 5, 6)) %>% 
@@ -91,6 +117,8 @@ output_sim_reg
 
 ```
 
+
+Proportion times the null was rejected
 ```{r}
 ls_reject_pre = output_sim_reg %>%
   group_by(beta1) %>% 
@@ -99,26 +127,61 @@ ls_reject_pre = output_sim_reg %>%
             non_reject = sum(p_value > 0.05), 
             prop_reject = (reject/n))
 
+ls_reject_pre
+
 ls_reject_hist = ls_reject_pre %>% 
   ggplot(aes(x = beta1, y = prop_reject)) +
-  geom_histogram(stat = "identity")
+  geom_histogram(stat = "identity") +
+  labs(x = "Beta 1", y = "Proportion of Reject nulls", title = "Proportions of rejected null")
 
 ls_reject_hist
 ```
 
+THe effect size is the difference between the two means, estimated and null mean. When the null hypothesis is rejected, the differences between means are large, which results in a larger effect size. Power is the probability of rejecting the null correctly (null is not true and reject null). Therefore, the larger the effect size, the higher the statistical power. 
+
+
+Average beta1 hat value vs average beta1 hat value of rejected null. 
 ```{r}
 ls_beta_avg_pre = output_sim_reg %>%
   group_by(beta1) %>% 
-  mutate(avg_beta_hat = mean(beta1_hat))
+  summarize(avg_beta_hat = mean(beta1_hat))
 
 ls_beta_avg_pre
 
 ls_bavg_rej_pre = output_sim_reg %>% 
-  group_by(beta1) %>% 
   filter(p_value <= 0.05) %>% 
-  mutate(avg_betah_rej = mean(beta1_hat))
+  group_by(beta1) %>%
+  summarize(avg_betah_rej = mean(beta1_hat))
 
 ls_bavg_rej_pre
 ```
 
 
+```{r}
+full = ls_beta_avg_pre %>%
+  inner_join(ls_bavg_rej_pre, by = "beta1")
+
+full
+
+longer = full %>% 
+  pivot_longer(
+    avg_beta_hat:avg_betah_rej,
+    names_to = "beta1_hat",
+    values_to = "beta1_hat_value"
+  )
+
+knitr::kable(longer,
+             format = "html",
+             digits = 3,
+             caption = "Avg Beta Hat vs Avg Beta hat reject values")
+```
+
+```{r}
+ggplot(longer, aes(x = beta1, y = beta1_hat_value, color = beta1_hat, group = beta1_hat)) +
+  geom_point() +
+  geom_line() + 
+  labs(x = "Beta 1", y = "Beta value", title = "Avg Beta Hat vs Avg Beta reject")
+```
+
+
+Judging solely on the graph, the average beta1_hat values in which the null hypothesis is different from the true beta value. This most likely result from the large variance of 50. A large variance indicates a large standard error. Therefore, the obtain a large test statistics (t = estimated beta1_hat / SE), in order to reject the p-value the estimated beta1_hat_reject value must also be large.    
